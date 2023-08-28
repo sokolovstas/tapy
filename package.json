@@ -4,7 +4,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "node dist/index.js test"
+    "test": "tsc; node dist/index.js test"
   },
   "main": "dist/index.js",
   "bin": {
