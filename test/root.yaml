@@ -2,9 +2,3 @@ root: https://jsonplaceholder.typicode.com
 
 headers:
   "Content-Type": "application/json"
-
-steps:
-  - get: /posts/1
-    status: 200
-    check:
-      - json.id === 1

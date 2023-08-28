@@ -1,0 +1,10 @@
+depends_on:
+  - root
+
+steps:
+  - post: https://jsonplaceholder.typicode.com
+    body:
+      email: login
+      password: password
+    headers:
+      "Authorization": "Bearer ${json.token}"

@@ -1,0 +1,8 @@
+depends_on:
+  - post
+
+steps:
+  - get: /posts/1
+    status: 200
+    check:
+      - json.id === 1

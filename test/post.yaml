@@ -1,0 +1,19 @@
+depends_on:
+  - auth
+
+steps:
+  - post: /posts
+    body:
+      title: foo
+      body: bar
+      userId: 1
+    status: 201
+    log: json
+    json: post
+    check:
+      - json.title === "foo"
+      - json.body === "bar"
+
+cleanup:
+  - delete: /posts/${post.id}
+    status: 200

@@ -228,9 +228,12 @@ for (const path of jsfiles) {
     const depFile = resolve(join(testsFolder, dep + ".yaml"));
     const rel = relative(testsFolder, path);
     const depRel = relative(testsFolder, depFile);
+    console.log(depRel, rel);
     graph.addEdge(depRel, rel);
   }
 }
+
+console.log(graph.topologicalSort());
 
 for (const path of graph.topologicalSort()) {
   const file = await readFile(join(testsFolder, path), "utf-8");
