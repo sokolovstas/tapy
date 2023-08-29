@@ -10,7 +10,7 @@ TAPY - Test API with YAML
 
 ## API
 
-Каждый файл и каждый шаг может содержать следующие переменные:
+Каждый файл и каждый шаг может содержать следующие настройки:
 
 ```yaml
 root: https://jsonplaceholder.typicode.com # переустановать root
