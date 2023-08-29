@@ -1,10 +1,10 @@
 #! /usr/bin/env node
 
-import chalk from "chalk";
 import { readFile } from "fs/promises";
 import { glob } from "glob";
 import { Graph } from "graph-data-structure";
 import { join, relative, resolve } from "path";
+import pc from "picocolors";
 import { parse } from "yaml";
 
 import yargs from "yargs";
@@ -22,9 +22,12 @@ export type TestCheck = string;
 
 export interface TestStep extends TestSettings {
   post: string;
-  log: string;
   get: string;
+  put: string;
   delete: string;
+
+  log: string;
+
   body: Record<string, TestVar>;
   json: string;
   status: number;
@@ -107,7 +110,7 @@ async function runStep(s: TestStep) {
   let json = {};
   if (s.post) {
     const path = getUrl(s.post);
-    console.log(chalk.bgBlue("  ", `- POST ${path}`));
+    console.log(pc.bgBlue(` - POST ${path}`));
     const body = convertVars(s.body);
     response = await fetch(path, {
       method: "POST",
@@ -121,9 +124,25 @@ async function runStep(s: TestStep) {
       globalThis.context.json = {};
     }
   }
+  if (s.put) {
+    const path = getUrl(s.put);
+    console.log(pc.bgBlue(` - PUT ${path}`));
+    const body = convertVars(s.body);
+    response = await fetch(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: headers,
+    });
+    try {
+      json = await response.json();
+      globalThis.context.json = json;
+    } catch {
+      globalThis.context.json = {};
+    }
+  }
   if (s.get) {
     const path = getUrl(s.get);
-    console.log(chalk.bgBlue("  ", `- GET ${path}`));
+    console.log(pc.bgBlue(` - GET ${path}`));
     response = await fetch(path, {
       method: "GET",
       headers: headers,
@@ -137,7 +156,7 @@ async function runStep(s: TestStep) {
   }
   if (s.delete) {
     const path = getUrl(s.delete);
-    console.log(chalk.bgBlue("  ", `- DELETE ${path}`));
+    console.log(pc.bgBlue(` - DELETE ${path}`));
     response = await fetch(path, {
       method: "DELETE",
       headers: headers,
@@ -157,12 +176,12 @@ async function runStep(s: TestStep) {
   }
 
   if (s.log) {
-    console.log(chalk.blue(logEvalInContext(s.log)));
+    console.log(pc.blue(logEvalInContext(s.log)));
   }
 
   if (s.status) {
     if (response.status != s.status) {
-      console.log(chalk.red(JSON.stringify(json)));
+      console.log(pc.red(JSON.stringify(json)));
       throw `Status code mismatch. Want ${s.status} recive ${response.status}`;
     }
   }
@@ -194,21 +213,21 @@ async function loadSettings(test: TestSettings) {
 }
 async function runTestFile(f: TestFile) {
   if (f.beforeAll) {
-    console.log(chalk.bgGreen("  ", "- BEFORE ALL"));
+    console.log(pc.bgGreen(" - BEFORE ALL"));
     await runSteps(f.beforeAll);
   }
   if (f.steps) {
-    console.log(chalk.bgGreen("  ", "- STEPS"));
+    console.log(pc.bgGreen(" - STEPS"));
     await runSteps(f.steps);
   }
   if (f.afterAll) {
-    console.log(chalk.bgGreen("  ", "- AFTER ALL"));
+    console.log(pc.bgGreen(" - AFTER ALL"));
     await runSteps(f.afterAll);
   }
 }
 async function runCleanup(f: TestFile) {
   await runSteps(f.cleanup).catch((e) => {
-    console.error(chalk.bgRedBright(` - FAIL: ${e}`));
+    console.error(pc.bgRed(` - FAIL: ${e}`));
   });
 }
 
@@ -228,22 +247,26 @@ for (const path of jsfiles) {
     const depFile = resolve(join(testsFolder, dep + ".yaml"));
     const rel = relative(testsFolder, path);
     const depRel = relative(testsFolder, depFile);
-    console.log(depRel, rel);
     graph.addEdge(depRel, rel);
   }
 }
 
-console.log(graph.topologicalSort());
-
+console.log(pc.bgCyan(` - RUN IN TOPOLOGICAL SORT`));
+console.log(pc.cyan(graph.topologicalSort().join(" -> ")));
+let throwed = false;
 for (const path of graph.topologicalSort()) {
   const file = await readFile(join(testsFolder, path), "utf-8");
   const testFile = parse(file) as TestFile;
 
   await loadSettings(testFile);
-  console.log(chalk.bgGreen(` - RUN FILE ${path}`));
+  console.log(pc.bgGreen(` - RUN FILE ${path}`));
   await runTestFile(testFile).catch((e) => {
-    console.error(chalk.bgRedBright(` - FAIL: ${e}`));
+    console.error(pc.bgRed(` - FAIL: ${e}`));
+    throwed = true;
   });
+  if (throwed) {
+    break;
+  }
 }
 
 for (const path of graph.topologicalSort().reverse()) {
@@ -251,9 +274,13 @@ for (const path of graph.topologicalSort().reverse()) {
   const testFile = parse(file) as TestFile;
 
   if (testFile.cleanup) {
-    console.log(chalk.bgGreen(` - CLEANUP ${path}`));
+    console.log(pc.bgGreen(` - CLEANUP ${path}`));
     await runCleanup(testFile).catch((e) => {
-      console.error(chalk.bgRedBright(` - FAIL: ${e}`));
+      console.error(pc.bgRed(` - FAIL: ${e}`));
     });
   }
+}
+
+if (throwed) {
+  process.exit(1);
 }

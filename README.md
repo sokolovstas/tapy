@@ -26,7 +26,7 @@ headers: # установаить заголовки в следующие fetch
 steps:
     - post: url # POST запрос
       log: varName/json # вывести в лог переменную varName или json ответ
-      body: Record<string, TestVar> # тело запроса
+      body: # тело запроса
         title: title value string
         user_id: 2
       json: varName # сохранить ответ в переменную
@@ -34,10 +34,13 @@ steps:
       check: # проверить после выполнение запросов
         - json.title === 'title value string'
         - json.user_id === 2
+    - put: url # PUT запрос
+      ...
     - get: url # GET запрос
       ...
     - delete: url # DELETE запрос
       ...
+
 ```
 
 ## Запуск

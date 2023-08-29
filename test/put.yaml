@@ -1,0 +1,12 @@
+depends_on:
+  - post
+
+steps:
+  - put: /posts/1
+    body:
+      title: foo1
+      body: bar1
+    status: 200
+    check:
+      - json.title === "foo1"
+      - json.body === "bar1"
