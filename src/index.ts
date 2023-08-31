@@ -21,24 +21,24 @@ export type TestVars = { [key: string]: TestVar };
 export type TestCheck = string;
 
 export interface TestStep extends TestSettings {
-  post: string;
-  get: string;
-  put: string;
-  delete: string;
+  post?: string;
+  get?: string;
+  put?: string;
+  delete?: string;
 
-  log: string;
+  log?: string;
 
-  body: Record<string, TestVar>;
-  json: string;
-  status: number;
-  check: TestCheck[];
+  body?: Record<string, TestVar>;
+  json?: string;
+  status?: number;
+  check?: TestCheck[];
 }
 
 export interface TestSettings {
-  root: string;
-  vars: TestVars;
-  depends_on: string[];
-  headers: TestVars;
+  root?: string;
+  vars?: TestVars;
+  depends_on?: string[];
+  headers?: TestVars;
 }
 
 export interface TestFile extends TestSettings {
@@ -201,16 +201,19 @@ async function runSteps(s: TestStep[]) {
 }
 
 async function loadSettings(test: TestSettings) {
-  if (test.vars) {
-    setVars(convertVars(test.vars));
-  }
-  if (test.headers) {
-    headers = { ...headers, ...convertVars(test.headers) };
-  }
-  if (test.root) {
-    root = test.root;
+  if (test) {
+    if (test.vars) {
+      setVars(convertVars(test.vars));
+    }
+    if (test.headers) {
+      headers = { ...headers, ...convertVars(test.headers) };
+    }
+    if (test.root) {
+      root = test.root;
+    }
   }
 }
+
 async function runTestFile(f: TestFile) {
   if (f.beforeAll) {
     console.log(pc.bgGreen(" - BEFORE ALL"));
@@ -251,6 +254,8 @@ for (const path of jsfiles) {
   }
 }
 
+const optionsMap: Record<string, TestSettings> = {};
+
 console.log(pc.bgCyan(` - RUN IN TOPOLOGICAL SORT`));
 console.log(pc.cyan(graph.topologicalSort().join(" -> ")));
 let throwed = false;
@@ -258,8 +263,16 @@ for (const path of graph.topologicalSort()) {
   const file = await readFile(join(testsFolder, path), "utf-8");
   const testFile = parse(file) as TestFile;
 
+  await loadSettings(optionsMap[path]);
   await loadSettings(testFile);
   console.log(pc.bgGreen(` - RUN FILE ${path}`));
+  for (const child of graph.depthFirstSearch([path])) {
+    optionsMap[child] = {
+      root: testFile.root ?? optionsMap[child]?.root,
+      vars: { ...optionsMap[child]?.vars, ...testFile.vars },
+      headers: { ...optionsMap[child]?.headers, ...testFile.headers },
+    };
+  }
   await runTestFile(testFile).catch((e) => {
     console.error(pc.bgRed(` - FAIL: ${e}`));
     throwed = true;
@@ -272,6 +285,9 @@ for (const path of graph.topologicalSort()) {
 for (const path of graph.topologicalSort().reverse()) {
   const file = await readFile(join(testsFolder, path), "utf-8");
   const testFile = parse(file) as TestFile;
+
+  await loadSettings(optionsMap[path]);
+  await loadSettings(testFile);
 
   if (testFile.cleanup) {
     console.log(pc.bgGreen(` - CLEANUP ${path}`));
