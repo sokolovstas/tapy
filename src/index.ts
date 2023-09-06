@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 
-import { readFile } from "fs/promises";
+import { readFile, stat } from "fs/promises";
 import { glob } from "glob";
 import { Graph } from "graph-data-structure";
 import { join, relative, resolve } from "path";
@@ -10,11 +10,41 @@ import { parse } from "yaml";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-const args = await yargs(hideBin(process.argv))
-  .usage("Usage: yapi <path>")
-  .help().argv;
+const yargv = await yargs(hideBin(process.argv))
+  .usage("Usage: yapi <options> <path>")
+  .option("pause-cleanup", {
+    alias: "pc",
+    type: "boolean",
+    default: false,
+    description: "Pause before cleanup run",
+  })
+  .option("help", {
+    alias: "h",
+    type: "boolean",
+    default: false,
+    description: "Pause before cleanup run",
+  })
+  .parserConfiguration({ "unknown-options-as-args": true });
 
-const testsFolder = resolve(args._[0].toString());
+const args = await yargv.parse();
+args.pauseCleanup =
+  args._.includes("-pc") || args._.includes("--pause-cleanup");
+
+args.help = args._.includes("-h") || args._.includes("--help");
+
+if (args.help) {
+  yargv.showHelp();
+  process.exit(0);
+}
+
+const folder = args._[args._.length - 1];
+const testsFolder = resolve(folder.toString());
+
+try {
+  if (!(await stat(testsFolder)).isDirectory()) {
+    yargv.showHelp();
+  }
+} catch {}
 
 export type TestVar = string | { [key: string]: TestVar };
 export type TestVars = { [key: string]: TestVar };
@@ -24,6 +54,7 @@ export interface TestStep extends TestSettings {
   post?: string;
   get?: string;
   put?: string;
+  patch?: string;
   delete?: string;
 
   log?: string;
@@ -32,6 +63,7 @@ export interface TestStep extends TestSettings {
   json?: string;
   status?: number;
   check?: TestCheck[];
+  eval?: string[];
 }
 
 export interface TestSettings {
@@ -67,7 +99,10 @@ let headers: Record<string, any> = {};
 
 let root: string = "";
 
-function convertVars<K extends TestVar | TestVars>(v: K): K {
+function convertVars<K extends TestVar | TestVars | string>(v: K): K {
+  if (typeof v === "string") {
+    return taggedEvalInContext(v);
+  }
   for (const key in v as TestVars) {
     if (typeof v[key] === "object") {
       convertVars(v[key]);
@@ -85,10 +120,13 @@ function taggedEvalInContext(str: string) {
   let result = eval.call(this, "with(this.context){`" + str + "`}");
   if (result === str) {
     try {
-      result = eval.call(this, "with(this.context){eval('" + str + "')}");
+      result = evalInContext(str);
     } catch {}
   }
   return result;
+}
+function evalInContext(str: string) {
+  return eval.call(this, "with(this.context){eval('" + str + "')}");
 }
 function logEvalInContext(str: string) {
   let result = eval.call(
@@ -169,7 +207,11 @@ async function runStep(s: TestStep) {
     }
   }
 
-  await loadSettings(s);
+  if (s.eval) {
+    for (const e of s.eval) {
+      evalInContext(e);
+    }
+  }
 
   if (s.json) {
     globalThis.context[s.json] = json;
@@ -185,6 +227,9 @@ async function runStep(s: TestStep) {
       throw `Status code mismatch. Want ${s.status} recive ${response.status}`;
     }
   }
+
+  await loadSettings(s);
+
   if (s.check) {
     for (const c of s.check) {
       if (taggedEvalInContext(c) !== true) {
@@ -280,6 +325,18 @@ for (const path of graph.topologicalSort()) {
   if (throwed) {
     break;
   }
+}
+if (args.pauseCleanup) {
+  console.log(
+    pc.bgMagenta(`PAUSED BEFORE CLEANUP > Press any key to continue`)
+  );
+  process.stdin.setRawMode(true);
+  await new Promise((resolve) =>
+    process.stdin.once("data", () => {
+      process.stdin.setRawMode(false);
+      resolve(null);
+    })
+  );
 }
 
 for (const path of graph.topologicalSort().reverse()) {

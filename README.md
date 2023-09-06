@@ -45,6 +45,8 @@ steps:
     check: # проверить после выполнение запросов
       - json.title === 'title value string'
       - json.user_id === 2
+    eval: # выполняет eval в контексте
+      - m1.date = "2023-09-25T00:00:00Z"
   - put: url # PUT запрос
     ...
   - get: url # GET запрос
@@ -66,5 +68,6 @@ cleanup:
 ## Запуск
 
 ```
-npx rw-tapy ./test
+npx rw-tapy --help
+npx rw-tapy <options> ./test
 ```
