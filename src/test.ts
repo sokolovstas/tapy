@@ -11,6 +11,8 @@ export interface TestStep extends TestSettings {
   patch?: string;
   delete?: string;
 
+  sleep?: number;
+
   log?: string;
 
   body?: Record<string, TestVar>;
@@ -103,6 +105,9 @@ function getUrl(url: string) {
 async function runStep(s: TestStep) {
   let response: Response = null;
   let json = {};
+  if (s.sleep) {
+    await new Promise((r) => setTimeout(r, s.sleep));
+  }
   if (s.post) {
     const path = getUrl(s.post);
     console.log(pc.bgBlue(` - POST ${path}`));

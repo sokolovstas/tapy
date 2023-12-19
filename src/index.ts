@@ -15,34 +15,23 @@ import {
   loadSettings,
   runCleanup,
   runTestFile,
-} from "./test";
+} from "./test.js";
 
 const yargv = await yargs(hideBin(process.argv))
   .usage("Usage: yapi <options> <path>")
   .option("pause-cleanup", {
-    alias: "pc",
+    alias: "p",
     type: "boolean",
-    default: false,
     description: "Pause before cleanup run",
   })
   .option("help", {
     alias: "h",
     type: "boolean",
-    default: false,
-    description: "Pause before cleanup run",
+    description: "Show help",
   })
   .parserConfiguration({ "unknown-options-as-args": true });
 
 const args = await yargv.parse();
-args.pauseCleanup =
-  args._.includes("-pc") || args._.includes("--pause-cleanup");
-
-args.help = args._.includes("-h") || args._.includes("--help");
-
-if (args.help) {
-  yargv.showHelp();
-  process.exit(0);
-}
 
 const folder = args._[args._.length - 1];
 const testsFolder = resolve(folder.toString());

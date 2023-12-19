@@ -35,6 +35,7 @@ beforeAll:
   - get: url # GET запрос
     ...
 steps:
+  - sleep: milliseconds # Подождать перед выполнением
   - post: url # POST запрос
     log: varName/json # вывести в лог переменную varName или json ответ
     body: # тело запроса
