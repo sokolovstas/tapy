@@ -19,7 +19,7 @@ jobs:
       - run: |
           npm ci
           npm test
-          npm version --no-git-tag-version from-git
+          npm version --no-git-tag-version from-git || true
           npm run build
           npm publish
         env:
